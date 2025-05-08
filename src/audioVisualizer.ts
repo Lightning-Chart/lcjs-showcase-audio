@@ -24,6 +24,7 @@ import {
     PointLineAreaSeries,
     emptyFill,
     UIDraggingModes,
+    htmlTextRenderer,
 } from '@lightningchart/lcjs'
 import { Scaler, noScaler, multiplierScaler, dbScaler, freqScaler, offSetScaler } from './utils'
 
@@ -352,6 +353,7 @@ export class AudioVisualizer {
                 numberOfColumns: 2,
                 numberOfRows: 3,
                 theme,
+                textRenderer: htmlTextRenderer,
             })
             .setSplitterStyle(emptyLine)
             .setBackgroundStrokeStyle(emptyLine)
