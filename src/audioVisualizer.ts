@@ -2,7 +2,6 @@ import { loadAudioFile } from './audioSources'
 import {
     Point,
     MPoint,
-    LineSeries,
     ChartXY,
     AxisTickStrategies,
     Dashboard,
@@ -184,7 +183,7 @@ export class AudioVisualizer {
 
             // update time domain data
             this._series.timeDomain.clear()
-            this._series.timeDomain.add(this._points.timeDomain)
+            this._series.timeDomain.appendJSON(this._points.timeDomain)
 
             if (tStart === undefined) {
                 tStart = performance.now()
@@ -193,10 +192,14 @@ export class AudioVisualizer {
 
             // add waveform data to the waveform series
             const waveData = Array.from(this._data.timeDomain).map(freqScaler)
-            this._series.waveform.appendSamples({
-                yValues: waveData,
-                step: 1000 / this._audioCtx.sampleRate,
-            })
+            this._series.waveform.appendSamples(
+                {
+                    y: waveData,
+                },
+                {
+                    step: 1000 / this._audioCtx.sampleRate,
+                },
+            )
 
             const freqData = Array.from(this._data.frequency)
             const iSpectrogram = Math.floor(tNow / this._series.spectrogram.getStep().x)
@@ -269,7 +272,7 @@ export class AudioVisualizer {
         }
         this._charts.waveformHistory
             .getDefaultAxisX()
-            .setScrollStrategy(AxisScrollStrategies.progressive)
+            .setScrollStrategy(AxisScrollStrategies.scrolling)
             .setInterval({ start: 0, end: 15_000, stopAxisAfter: false })
             .setTickStrategy(AxisTickStrategies.Time)
 
@@ -300,15 +303,15 @@ export class AudioVisualizer {
                     (this._audioCtx.sampleRate / this._audioNodes.analyzer.frequencyBinCount),
                 stopAxisAfter: false,
             })
-            .setScrollStrategy(AxisScrollStrategies.progressive)
+            .setScrollStrategy(AxisScrollStrategies.scrolling)
 
         // create series
         this._series = {
-            timeDomain: this._setupSeries(this._charts.timeDomain, 'Time Domain'),
-            waveform: this._setupSeries(this._charts.waveformHistory, 'Waveform History'),
-            amplitude: this._setupSeries(this._charts.spectrum, 'Amplitude'),
-            history: this._setupSeries(this._charts.spectrum, 'Amplitude Decay'),
-            maxAmplitude: this._setupSeries(this._charts.spectrum, 'Amplitude Max'),
+            timeDomain: this._setupSeries(this._charts.timeDomain, 'Time Domain', false),
+            waveform: this._setupSeries(this._charts.waveformHistory, 'Waveform History', true),
+            amplitude: this._setupSeries(this._charts.spectrum, 'Amplitude', false),
+            history: this._setupSeries(this._charts.spectrum, 'Amplitude Decay', false),
+            maxAmplitude: this._setupSeries(this._charts.spectrum, 'Amplitude Max', false),
             spectrogram: this._setupHeatmapSeries(
                 this._charts.spectrogram,
                 this._spectrogramDataCount,
@@ -334,7 +337,7 @@ export class AudioVisualizer {
                 }
                 // refresh the displayed data
                 this._series.maxAmplitude.clear()
-                this._series.maxAmplitude.add(ArrayBufferToPointArray(this._data.maxHistory))
+                this._series.maxAmplitude.appendJSON(ArrayBufferToPointArray(this._data.maxHistory))
             })
 
         this._series.spectrogram.axisX.setTitle('Time (s)').setTitleFont((f) => f.setSize(13))
@@ -404,10 +407,13 @@ export class AudioVisualizer {
      * @param name Name of the series
      * @param color Color of the series line
      */
-    private _setupSeries(chart: ChartXY, name: string, useDataPattern: boolean = true): PointLineAreaSeries {
+    private _setupSeries(chart: ChartXY, name: string, autoSample: boolean): PointLineAreaSeries {
         const series = chart
             .addPointLineAreaSeries({
-                dataPattern: useDataPattern ? 'ProgressiveX' : null,
+                schema: {
+                    y: { pattern: null },
+                    x: { pattern: 'progressive', auto: autoSample },
+                },
             })
             .setAreaFillStyle(emptyFill)
             .setPointFillStyle(emptyFill)
@@ -452,11 +458,11 @@ export class AudioVisualizer {
      */
     public update() {
         this._series.amplitude.clear()
-        this._series.amplitude.add(this._points.frequency)
+        this._series.amplitude.appendJSON(this._points.frequency)
         this._series.history.clear()
-        this._series.history.add(this._points.history)
+        this._series.history.appendJSON(this._points.history)
         this._series.maxAmplitude.clear()
-        this._series.maxAmplitude.add(this._points.maxHistory)
+        this._series.maxAmplitude.appendJSON(this._points.maxHistory)
     }
 
     /**
